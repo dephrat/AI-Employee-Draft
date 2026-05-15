@@ -2,9 +2,47 @@
 <html>
 <head>
     <title>AI Employee Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; }
+        .email-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+        .email-card h3 { margin: 0 0 5px 0; }
+        .sender { color: #666; font-size: 14px; margin-bottom: 15px; }
+        .draft { background: #f9f9f9; padding: 15px; border-radius: 4px; white-space: pre-wrap; }
+        .actions { margin-top: 15px; }
+        button { padding: 8px 16px; margin-right: 10px; border: none; border-radius: 4px; cursor: pointer; }
+        .approve { background: #28a745; color: white; }
+        .dismiss { background: #dc3545; color: white; }
+        .status { color: #666; font-size: 14px; }
+    </style>
 </head>
 <body>
     <h1>AI Employee Dashboard</h1>
-    <p>Nothing here yet.</p>
+
+    {% if not connected %}
+        <a href="/connect">Connect Gmail</a>
+    {% else %}
+        <p>Gmail connected. <a href="/fetch">Fetch new emails</a></p>
+
+        {% if emails %}
+            {% for email in emails %}
+            <div class="email-card">
+                <h3>{{ email.subject }}</h3>
+                <div class="sender">From: {{ email.sender }}</div>
+                <div class="draft">{{ email.draft_reply }}</div>
+                <div class="actions">
+                    <form method="POST" action="/send" style="display:inline">
+                        <input type="hidden" name="to" value="{{ email.sender }}">
+                        <input type="hidden" name="subject" value="{{ email.subject }}">
+                        <input type="hidden" name="body" value="{{ email.draft_reply }}">
+                        <button type="submit" class="approve">Approve & Send</button>
+                    </form>
+                    <button class="dismiss">Dismiss</button>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="status">No pending emails. <a href="/fetch">Check now</a></p>
+        {% endif %}
+    {% endif %}
 </body>
 </html>
