@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Settings</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; }
+        textarea, input[type="text"] { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        textarea { height: 150px; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        label { font-weight: bold; display: block; margin-bottom: 5px; }
+        .hint { color: #666; font-size: 13px; margin-bottom: 10px; }
+        a { color: #007bff; }
+    </style>
+</head>
+<body>
+    <h1>Settings</h1>
+    <a href="/">← Back to Dashboard</a>
+    <br><br>
+    {% if saved %}
+        <p style="color: green; font-weight: bold;">✓ Settings saved!</p>
+    {% endif %}
+    <form method="POST">
+        <label>Business Brief</label>
+        <p class="hint">Describe your business, your name, and the tone you want replies to have.</p>
+        <textarea name="business_brief">{{ business_brief }}</textarea>
+
+        <label>Whitelist</label>
+        <p class="hint">Comma-separated email addresses to watch. e.g. client@gmail.com, another@email.com</p>
+        <input type="text" name="whitelist" value="{{ whitelist }}">
+
+        <button type="submit">Save</button>
+    </form>
+</body>
+</html>

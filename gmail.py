@@ -84,3 +84,12 @@ def send_reply(service, to, subject, body):
         userId="me",
         body={"raw": raw}
     ).execute()
+
+def archive_email(service, gmail_id):
+    service.users().messages().modify(
+        userId="me",
+        id=gmail_id,
+        body={
+            "removeLabelIds": ["INBOX", "UNREAD"]
+        }
+    ).execute()

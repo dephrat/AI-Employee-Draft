@@ -4,7 +4,9 @@
     <title>AI Employee Dashboard</title>
     <style>
         body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; }
-        .email-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .email-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 20px; transition: opacity 0.3s; }
+        .email-card.handled { opacity: 0.3; pointer-events: none; }
         .email-card h3 { margin: 0 0 5px 0; }
         .sender { color: #666; font-size: 14px; margin-bottom: 15px; }
         .draft { background: #f9f9f9; padding: 15px; border-radius: 4px; white-space: pre-wrap; }
@@ -12,37 +14,53 @@
         button { padding: 8px 16px; margin-right: 10px; border: none; border-radius: 4px; cursor: pointer; }
         .approve { background: #28a745; color: white; }
         .dismiss { background: #dc3545; color: white; }
+        .refresh-btn { background: #007bff; color: white; padding: 8px 20px; border: none; border-radius: 4px; cursor: pointer; }
         .status { color: #666; font-size: 14px; }
     </style>
 </head>
 <body>
-    <h1>AI Employee Dashboard</h1>
+    <div class="top-bar">
+        <h1>AI Employee Dashboard</h1>
+        {% if connected %}
+            <a href="/settings">Settings</a>
+            <button class="refresh-btn" onclick="window.location.href='/fetch'">Fetch New Emails</button>
+        {% endif %}
+    </div>
 
     {% if not connected %}
         <a href="/connect">Connect Gmail</a>
     {% else %}
-        <p>Gmail connected. <a href="/fetch">Fetch new emails</a></p>
-
         {% if emails %}
             {% for email in emails %}
-            <div class="email-card">
+            <div class="email-card" id="card-{{ loop.index }}">
                 <h3>{{ email.subject }}</h3>
                 <div class="sender">From: {{ email.sender }}</div>
                 <div class="draft">{{ email.draft_reply }}</div>
                 <div class="actions">
-                    <form method="POST" action="/send" style="display:inline">
+                    <form method="POST" action="/send" style="display:inline" onsubmit="handleCard({{ loop.index }})">
                         <input type="hidden" name="to" value="{{ email.sender }}">
                         <input type="hidden" name="subject" value="{{ email.subject }}">
                         <input type="hidden" name="body" value="{{ email.draft_reply }}">
+                        <input type="hidden" name="gmail_id" value="{{ email.gmail_id }}">
                         <button type="submit" class="approve">Approve & Send</button>
                     </form>
-                    <button class="dismiss">Dismiss</button>
+                    <form style="display:inline" onsubmit="handleCard({{ loop.index }})">
+                        <input type="hidden" name="gmail_id" value="{{ email.gmail_id }}">
+                        <button type="submit" class="dismiss" onclick="dismissEmail(this)">Dismiss</button>
+                    </form>
                 </div>
             </div>
             {% endfor %}
         {% else %}
-            <p class="status">No pending emails. <a href="/fetch">Check now</a></p>
+            <p class="status">No pending emails. Hit "Fetch New Emails" to check.</p>
         {% endif %}
     {% endif %}
+
+    <script>
+        function handleCard(index) {
+            const card = document.getElementById('card-' + index);
+            card.classList.add('handled');
+        }
+    </script>
 </body>
 </html>

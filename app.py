@@ -1,7 +1,7 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, session
 from dotenv import load_dotenv
-from db import init_db, get_db
+from db import init_db, get_db, get_setting, save_setting
 from gmail import get_oauth_flow, credentials_to_dict
 
 load_dotenv()
@@ -24,6 +24,7 @@ def connect():
     )
     session["state"] = state
     session["code_verifier"] = flow.code_verifier
+    print("Redirect URI:", url_for("oauth_callback", _external=True))
     return redirect(auth_url)
 
 @app.route("/oauth/callback")
@@ -44,18 +45,18 @@ def fetch():
     from ai import draft_reply
 
     service = get_gmail_service(session["credentials"])
-    whitelist = ["notifications-noreply@linkedin.com"]
+    whitelist = [e.strip() for e in get_setting("whitelist", "").split(",") if e.strip()]
+    business_brief = get_setting("business_brief", "")
     emails = get_new_emails(service, whitelist)
-
-    business_brief = "We are a small consulting firm called Exemplar Consulting Inc. The owner's name is Daniel Ephrat. We respond professionally and concisely."
-
+    
     results = []
-    for email in emails[:2]:
+    for email in emails:
         reply = draft_reply(email["body"], email["sender"], email["subject"], business_brief)
         results.append({
             "subject": email["subject"],
             "sender": email["sender"],
-            "draft_reply": reply
+            "draft_reply": reply,
+            "gmail_id": email["gmail_id"]
         })
 
     return render_template("dashboard.html", connected=True, emails=results)
@@ -65,16 +66,54 @@ def send():
     if not session.get("credentials"):
         return redirect(url_for("connect"))
 
-    from gmail import get_gmail_service, send_reply
+    from gmail import get_gmail_service, send_reply, archive_email
 
     service = get_gmail_service(session["credentials"])
 
     to = request.form.get("to")
     subject = request.form.get("subject")
     body = request.form.get("body")
+    gmail_id = request.form.get("gmail_id")
+    print("gmail_id received:", gmail_id)
 
     send_reply(service, to, subject, body)
+    if gmail_id:
+        archive_email(service, gmail_id)
+
+    return redirect(url_for("fetch"))
+
+@app.route("/logout")
+def logout():
+    session.clear()
     return redirect(url_for("dashboard"))
+
+@app.route("/dismiss", methods=["POST"])
+def dismiss():
+    if not session.get("credentials"):
+        return redirect(url_for("connect"))
+
+    from gmail import get_gmail_service, archive_email
+
+    service = get_gmail_service(session["credentials"])
+    gmail_id = request.form.get("gmail_id")
+
+    if gmail_id:
+        archive_email(service, gmail_id)
+
+    return redirect(url_for("fetch"))
+
+@app.route("/settings", methods=["GET", "POST"])
+def settings():
+    saved = False
+    if request.method == "POST":
+        save_setting("business_brief", request.form.get("business_brief"))
+        save_setting("whitelist", request.form.get("whitelist"))
+        saved = True
+    
+    business_brief = get_setting("business_brief", "")
+    whitelist = get_setting("whitelist", "")
+    return render_template("settings.html", business_brief=business_brief, whitelist=whitelist, saved=saved)
+
 
 if __name__ == "__main__":
     init_db()
