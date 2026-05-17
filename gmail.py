@@ -39,9 +39,10 @@ def get_gmail_service(credentials_dict):
 
 def get_new_emails(service, whitelist):
     query = " OR ".join([f"from:{addr}" for addr in whitelist])
+    query += " -label:ai-employee-review in:inbox"
     result = service.users().messages().list(
         userId="me",
-        q=query + " is:unread"
+        q=query
     ).execute()
 
     messages = result.get("messages", [])
@@ -92,4 +93,27 @@ def archive_email(service, gmail_id):
         body={
             "removeLabelIds": ["INBOX", "UNREAD"]
         }
+    ).execute()
+
+def get_account_email(service):
+    profile = service.users().getProfile(userId="me").execute()
+    return profile["emailAddress"]
+
+def get_or_create_label(service, label_name):
+    labels = service.users().labels().list(userId="me").execute()
+    for label in labels.get("labels", []):
+        if label["name"] == label_name:
+            return label["id"]
+    created = service.users().labels().create(
+        userId="me",
+        body={"name": label_name}
+    ).execute()
+    return created["id"]
+
+def label_email(service, gmail_id, label_name):
+    label_id = get_or_create_label(service, label_name)
+    service.users().messages().modify(
+        userId="me",
+        id=gmail_id,
+        body={"addLabelIds": [label_id]}
     ).execute()

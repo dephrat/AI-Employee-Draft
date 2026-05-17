@@ -30,15 +30,17 @@ def init_db():
     conn.commit()
     conn.close()
 
-def get_setting(key, default=None):
+def get_setting(key, default=None, account=None):
+    full_key = f"{account}:{key}" if account else key
     conn = get_db()
-    row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (full_key,)).fetchone()
     conn.close()
     return row["value"] if row else default
 
-def save_setting(key, value):
+def save_setting(key, value, account=None):
+    full_key = f"{account}:{key}" if account else key
     conn = get_db()
-    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (full_key, value))
     conn.commit()
     conn.close()
     

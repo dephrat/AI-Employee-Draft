@@ -20,6 +20,9 @@
         <p style="color: green; font-weight: bold;">✓ Settings saved!</p>
     {% endif %}
     <form method="POST">
+        <label>Your Name</label>
+        <p class="hint">Your full name, shown on the dashboard.</p>
+        <input type="text" name="owner_name" value="{{ owner_name }}">
         <label>Business Brief</label>
         <p class="hint">Describe your business, your name, and the tone you want replies to have.</p>
         <textarea name="business_brief">{{ business_brief }}</textarea>

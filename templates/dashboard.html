@@ -20,12 +20,16 @@
 </head>
 <body>
     <div class="top-bar">
-        <h1>AI Employee Dashboard</h1>
-        {% if connected %}
-            <a href="/settings">Settings</a>
-            <button class="refresh-btn" onclick="window.location.href='/fetch'">Fetch New Emails</button>
+    <h1>AI Employee Dashboard</h1>
+    {% if connected %}
+        {% if owner_name %}
+            <p style="color: #666; font-size: 14px;">Hi, {{ owner_name }}</p>
         {% endif %}
-    </div>
+        <a href="/settings">Settings</a>
+        <a href="/logout">Logout</a>
+        <button class="refresh-btn" onclick="window.location.href='/fetch'">Fetch New Emails</button>
+    {% endif %}
+</div>
 
     {% if not connected %}
         <a href="/connect">Connect Gmail</a>
@@ -35,6 +39,7 @@
             <div class="email-card" id="card-{{ loop.index }}">
                 <h3>{{ email.subject }}</h3>
                 <div class="sender">From: {{ email.sender }}</div>
+                <div class="original" style="background: #fff; border: 1px solid #eee; padding: 15px; border-radius: 4px; margin-bottom: 10px; white-space: pre-wrap; font-size: 14px;">{{ email.body }}</div>
                 <div class="draft">{{ email.draft_reply }}</div>
                 <div class="actions">
                     <form method="POST" action="/send" style="display:inline" onsubmit="handleCard({{ loop.index }})">
@@ -44,7 +49,7 @@
                         <input type="hidden" name="gmail_id" value="{{ email.gmail_id }}">
                         <button type="submit" class="approve">Approve & Send</button>
                     </form>
-                    <form style="display:inline" onsubmit="handleCard({{ loop.index }})">
+                    <form method="POST" action="/dismiss" style="display:inline" onsubmit="handleCard({{ loop.index }})">
                         <input type="hidden" name="gmail_id" value="{{ email.gmail_id }}">
                         <button type="submit" class="dismiss" onclick="dismissEmail(this)">Dismiss</button>
                     </form>
