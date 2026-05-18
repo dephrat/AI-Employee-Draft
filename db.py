@@ -44,3 +44,23 @@ def save_setting(key, value, account=None):
     conn.commit()
     conn.close()
     
+def get_draft(gmail_id):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM emails WHERE gmail_id = ?", (gmail_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def save_draft(gmail_id, sender, subject, body, draft_reply):
+    conn = get_db()
+    conn.execute("""
+        INSERT OR REPLACE INTO emails (gmail_id, sender, subject, body, draft_reply, status)
+        VALUES (?, ?, ?, ?, ?, 'pending')
+    """, (gmail_id, sender, subject, body, draft_reply))
+    conn.commit()
+    conn.close()
+
+def delete_draft(gmail_id):
+    conn = get_db()
+    conn.execute("DELETE FROM emails WHERE gmail_id = ?", (gmail_id,))
+    conn.commit()
+    conn.close()

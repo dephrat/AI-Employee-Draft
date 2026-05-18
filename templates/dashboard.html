@@ -53,6 +53,10 @@
                         <input type="hidden" name="gmail_id" value="{{ email.gmail_id }}">
                         <button type="submit" class="dismiss" onclick="dismissEmail(this)">Dismiss</button>
                     </form>
+                    <form method="POST" action="/regenerate" style="display:inline" onsubmit="handleCard({{ loop.index }})">
+                        <input type="hidden" name="gmail_id" value="{{ email.gmail_id }}">
+                        <button type="submit" style="background: #ffc107; color: black; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">Regenerate</button>
+                    </form>
                 </div>
             </div>
             {% endfor %}
