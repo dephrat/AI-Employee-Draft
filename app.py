@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from db import init_db, get_db, get_setting, save_setting
 from gmail import get_oauth_flow, credentials_to_dict
 from concurrent.futures import ThreadPoolExecutor
+from google.auth.exceptions import RefreshError
 
 load_dotenv()
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -13,6 +14,11 @@ app.secret_key = os.getenv("SECRET_KEY", "dev-secret")
 
 def current_account():
     return session.get("account_email")
+
+@app.errorhandler(RefreshError)
+def handle_refresh_error(e):
+    session.clear()
+    return redirect(url_for("dashboard"))
 
 @app.route("/")
 def dashboard():
@@ -72,6 +78,7 @@ def fetch():
     with ThreadPoolExecutor() as executor:
         results = list(executor.map(process_email, emails))
 
+    session["drafted_emails"] = results
     return render_template("dashboard.html", connected=True, emails=results, owner_name=get_setting("owner_name", "", current_account()))
 
 @app.route("/send", methods=["POST"])
@@ -87,13 +94,16 @@ def send():
     subject = request.form.get("subject")
     body = request.form.get("body")
     gmail_id = request.form.get("gmail_id")
-    print("gmail_id received:", gmail_id)
 
     send_reply(service, to, subject, body)
     if gmail_id:
         archive_email(service, gmail_id)
 
-    return redirect(url_for("fetch"))
+    emails = session.get("drafted_emails", [])
+    emails = [e for e in emails if e["gmail_id"] != gmail_id]
+    session["drafted_emails"] = emails
+
+    return render_template("dashboard.html", connected=True, emails=emails, owner_name=get_setting("owner_name", "", current_account()))
 
 @app.route("/logout")
 def logout():
@@ -113,7 +123,11 @@ def dismiss():
     if gmail_id:
         label_email(service, gmail_id, "ai-employee-review")
 
-    return redirect(url_for("fetch"))
+    emails = session.get("drafted_emails", [])
+    emails = [e for e in emails if e["gmail_id"] != gmail_id]
+    session["drafted_emails"] = emails
+
+    return render_template("dashboard.html", connected=True, emails=emails, owner_name=get_setting("owner_name", "", current_account()))
 
 @app.route("/settings", methods=["GET", "POST"])
 def settings():
