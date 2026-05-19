@@ -44,11 +44,17 @@ def crawl_website(url, max_pages=10, additional_urls=None):
     domain = urlparse(url).netloc
     visited = set()
     all_content = []
-    queue = [url]
+
+    # Try sitemap first
+    sitemap_urls = get_sitemap_urls(url)
+    if sitemap_urls:
+        queue = sitemap_urls
+    else:
+        queue = [url]
 
     # Add manually specified URLs
     if additional_urls:
-        queue.extend(additional_urls)
+        queue = additional_urls + queue
 
     while queue and len(visited) < max_pages:
         current = queue.pop(0)
@@ -60,11 +66,23 @@ def crawl_website(url, max_pages=10, additional_urls=None):
         if content:
             all_content.append(f"--- {current} ---\n{content}")
 
-        # Discover new links from this page
-        new_links = get_internal_links(current, domain)
-        for link in new_links:
-            if link not in visited:
-                queue.append(link)
+        if not sitemap_urls:
+            new_links = get_internal_links(current, domain)
+            for link in new_links:
+                if link not in visited:
+                    queue.append(link)
 
     combined = "\n\n".join(all_content)
     return combined[:3000]
+
+def get_sitemap_urls(base_url):
+    try:
+        sitemap_url = base_url.rstrip("/") + "/sitemap.xml"
+        response = requests.get(sitemap_url, timeout=10)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, "xml")
+            urls = [loc.text for loc in soup.find_all("loc")]
+            return urls
+    except Exception as e:
+        print(f"Sitemap fetch failed: {e}")
+    return []

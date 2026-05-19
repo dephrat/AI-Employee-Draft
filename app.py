@@ -70,6 +70,8 @@ def fetch():
 
     service = get_gmail_service(session["credentials"])
     whitelist = [e.strip() for e in get_setting("whitelist", "", current_account()).split(",") if e.strip()]
+    if not whitelist:
+        return render_template("dashboard.html", connected=True, emails=[], owner_name=get_setting("owner_name", "", current_account()))
     business_brief = get_setting("business_brief", "", current_account())
 
     content = get_website_content(current_account())
@@ -166,7 +168,10 @@ def settings():
     website_url = get_setting("website_url", "", account)
     max_crawl_pages = get_setting("max_crawl_pages", "10", account)
     additional_urls = get_setting("additional_urls", "", account)
-    return render_template("settings.html", owner_name=owner_name, business_brief=business_brief, whitelist=whitelist, website_url=website_url, saved=saved, max_crawl_pages=max_crawl_pages, additional_urls=additional_urls)
+
+    crawled = request.args.get("crawled")
+    message = "✓ Website crawled!" if crawled else ("✓ Settings saved!" if saved else None)
+    return render_template("settings.html", owner_name=owner_name, business_brief=business_brief, whitelist=whitelist, website_url=website_url, max_crawl_pages=max_crawl_pages, additional_urls=additional_urls, message=message)
 
 @app.route("/regenerate", methods=["POST"])
 def regenerate():
@@ -203,7 +208,7 @@ def crawl():
     if website_url:
         content = crawl_website(website_url, max_pages, additional_urls)
         save_website_content(account, content)
-    return redirect(url_for("settings"))
+    return redirect(url_for("settings", crawled=1))
 
 @app.route("/crawled-content")
 def crawled_content():

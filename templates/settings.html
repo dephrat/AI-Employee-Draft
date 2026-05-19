@@ -16,10 +16,10 @@
     <h1>Settings</h1>
     <a href="/">← Back to Dashboard</a>
     <br><br>
-    {% if saved %}
-        <p style="color: green; font-weight: bold;">✓ Settings saved!</p>
+    {% if message %}
+        <p style="color: green; font-weight: bold;">{{ message }}</p>
     {% endif %}
-    <form method="POST">
+    <form method="POST" action="/settings">
         <label>Your Name</label>
         <p class="hint">Your full name, shown on the dashboard.</p>
         <input type="text" name="owner_name" value="{{ owner_name }}">
