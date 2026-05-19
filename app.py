@@ -1,13 +1,11 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, session
-from dotenv import load_dotenv
-from gmail import get_oauth_flow, credentials_to_dict
 from concurrent.futures import ThreadPoolExecutor
+from dotenv import load_dotenv
+from flask import Flask, render_template, request, redirect, url_for, session
 from google.auth.exceptions import RefreshError
-from db import init_db, get_db, get_setting, save_setting, delete_draft, get_draft
-import time
 from crawler import crawl_website
-from db import get_website_content, get_website_crawled_at, save_website_content
+from db import init_db, get_setting, save_setting, delete_draft, get_draft, get_website_content, save_website_content
+from gmail import get_oauth_flow, credentials_to_dict
 
 load_dotenv()
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -30,7 +28,11 @@ def handle_refresh_error(e):
 def dashboard():
     connected = session.get("credentials") is not None
     owner_name = get_setting("owner_name", "", current_account())
-    return render_template("dashboard.html", connected=connected, owner_name=owner_name)
+    emails = []
+    if connected:
+        ids = session.get("drafted_email_ids", [])
+        emails = get_emails_from_db(ids)
+    return render_template("dashboard.html", connected=connected, owner_name=owner_name, emails=emails)
 
 @app.route("/connect")
 def connect():
@@ -70,13 +72,7 @@ def fetch():
     whitelist = [e.strip() for e in get_setting("whitelist", "", current_account()).split(",") if e.strip()]
     business_brief = get_setting("business_brief", "", current_account())
 
-    website_url = get_setting("website_url", "", current_account())
-    crawled_at = get_website_crawled_at(current_account())
-    if website_url and (not crawled_at or time.time() - crawled_at > 86400):
-        content = crawl_website(website_url)
-        save_website_content(current_account(), content)
-    else:
-        content = get_website_content(current_account())
+    content = get_website_content(current_account())
 
     if content:
         business_brief = business_brief + "\n\nWebsite content:\n" + content
@@ -187,6 +183,15 @@ def regenerate():
     emails = get_emails_from_db(ids)
 
     return render_template("dashboard.html", connected=True, emails=emails, owner_name=get_setting("owner_name", "", current_account()))
+
+@app.route("/crawl", methods=["POST"])
+def crawl():
+    account = current_account()
+    website_url = get_setting("website_url", "", account)
+    if website_url:
+        content = crawl_website(website_url)
+        save_website_content(account, content)
+    return redirect(url_for("settings"))
 
 if __name__ == "__main__":
     init_db()

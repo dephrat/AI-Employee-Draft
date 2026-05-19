@@ -32,9 +32,12 @@
         <input type="text" name="whitelist" value="{{ whitelist }}">
 
         <label>Website URL</label>
-        <p class="hint">Your business website. We'll crawl it daily so the AI has up-to-date info.</p>
+        <p class="hint">Your business website. Click "Crawl Now" to fetch the latest content.</p>
         <input type="text" name="website_url" value="{{ website_url }}">
         <button type="submit">Save</button>
+    </form>
+    <form method="POST" action="/crawl" style="margin-top: 10px;">
+        <button type="submit" style="background: #28a745;">Crawl Now</button>
     </form>
 </body>
 </html>
