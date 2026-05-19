@@ -52,11 +52,11 @@ def oauth_callback():
     flow.fetch_token(authorization_response=request.url)
     credentials = flow.credentials
     session["credentials"] = credentials_to_dict(credentials)
-    
+
     from gmail import get_gmail_service, get_account_email
     service = get_gmail_service(session["credentials"])
     session["account_email"] = get_account_email(service)
-    
+
     return redirect(url_for("dashboard"))
 
 @app.route("/fetch")
@@ -73,7 +73,6 @@ def fetch():
     business_brief = get_setting("business_brief", "", current_account())
 
     content = get_website_content(current_account())
-
     if content:
         business_brief = business_brief + "\n\nWebsite content:\n" + content
 
@@ -84,7 +83,7 @@ def fetch():
         if existing:
             return existing["gmail_id"]
         reply = draft_reply(email["body"], email["sender"], email["subject"], business_brief)
-        save_draft(email["gmail_id"], email["sender"], email["subject"], email["body"], reply)
+        save_draft(email["gmail_id"], email["sender"], email["subject"], email["body"], reply, email["thread_id"], email["message_id"])
         return email["gmail_id"]
 
     with ThreadPoolExecutor() as executor:
@@ -107,8 +106,10 @@ def send():
     subject = request.form.get("subject")
     body = request.form.get("body")
     gmail_id = request.form.get("gmail_id")
+    thread_id = request.form.get("thread_id")
+    message_id = request.form.get("message_id")
 
-    send_reply(service, to, subject, body)
+    send_reply(service, to, subject, body, thread_id, message_id)
     if gmail_id:
         archive_email(service, gmail_id)
         delete_draft(gmail_id)
@@ -155,13 +156,17 @@ def settings():
         save_setting("business_brief", request.form.get("business_brief"), account)
         save_setting("whitelist", request.form.get("whitelist"), account)
         save_setting("website_url", request.form.get("website_url"), account)
+        save_setting("max_crawl_pages", request.form.get("max_crawl_pages"), account)
+        save_setting("additional_urls", request.form.get("additional_urls"), account)
         saved = True
 
     owner_name = get_setting("owner_name", "", account)
     business_brief = get_setting("business_brief", "", account)
     whitelist = get_setting("whitelist", "", account)
     website_url = get_setting("website_url", "", account)
-    return render_template("settings.html", owner_name=owner_name, business_brief=business_brief, whitelist=whitelist, website_url=website_url, saved=saved)
+    max_crawl_pages = get_setting("max_crawl_pages", "10", account)
+    additional_urls = get_setting("additional_urls", "", account)
+    return render_template("settings.html", owner_name=owner_name, business_brief=business_brief, whitelist=whitelist, website_url=website_url, saved=saved, max_crawl_pages=max_crawl_pages, additional_urls=additional_urls)
 
 @app.route("/regenerate", methods=["POST"])
 def regenerate():
@@ -174,10 +179,14 @@ def regenerate():
     gmail_id = request.form.get("gmail_id")
     business_brief = get_setting("business_brief", "", current_account())
 
+    content = get_website_content(current_account())
+    if content:
+        business_brief = business_brief + "\n\nWebsite content:\n" + content
+
     existing = get_draft(gmail_id)
     if existing:
         new_reply = draft_reply(existing["body"], existing["sender"], existing["subject"], business_brief)
-        save_draft(gmail_id, existing["sender"], existing["subject"], existing["body"], new_reply)
+        save_draft(gmail_id, existing["sender"], existing["subject"], existing["body"], new_reply, existing.get("thread_id", ""), existing.get("message_id", ""))
 
     ids = session.get("drafted_email_ids", [])
     emails = get_emails_from_db(ids)
@@ -186,12 +195,20 @@ def regenerate():
 
 @app.route("/crawl", methods=["POST"])
 def crawl():
+    from crawler import crawl_website
     account = current_account()
     website_url = get_setting("website_url", "", account)
+    max_pages = int(get_setting("max_crawl_pages", "10", account) or "10")
+    additional_urls = [u.strip() for u in get_setting("additional_urls", "", account).split(",") if u.strip()]
     if website_url:
-        content = crawl_website(website_url)
+        content = crawl_website(website_url, max_pages, additional_urls)
         save_website_content(account, content)
     return redirect(url_for("settings"))
+
+@app.route("/crawled-content")
+def crawled_content():
+    content = get_website_content(current_account())
+    return f"<pre>{content}</pre>"
 
 if __name__ == "__main__":
     init_db()

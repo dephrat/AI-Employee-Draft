@@ -13,6 +13,8 @@ def init_db():
         CREATE TABLE IF NOT EXISTS emails (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             gmail_id TEXT UNIQUE,
+            thread_id TEXT,
+            message_id TEXT,
             sender TEXT,
             subject TEXT,
             body TEXT,
@@ -43,19 +45,19 @@ def save_setting(key, value, account=None):
     conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (full_key, value))
     conn.commit()
     conn.close()
-    
+
 def get_draft(gmail_id):
     conn = get_db()
     row = conn.execute("SELECT * FROM emails WHERE gmail_id = ?", (gmail_id,)).fetchone()
     conn.close()
     return dict(row) if row else None
 
-def save_draft(gmail_id, sender, subject, body, draft_reply):
+def save_draft(gmail_id, sender, subject, body, draft_reply, thread_id="", message_id=""):
     conn = get_db()
     conn.execute("""
-        INSERT OR REPLACE INTO emails (gmail_id, sender, subject, body, draft_reply, status)
-        VALUES (?, ?, ?, ?, ?, 'pending')
-    """, (gmail_id, sender, subject, body, draft_reply))
+        INSERT OR REPLACE INTO emails (gmail_id, thread_id, message_id, sender, subject, body, draft_reply, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+    """, (gmail_id, thread_id, message_id, sender, subject, body, draft_reply))
     conn.commit()
     conn.close()
 
@@ -67,7 +69,6 @@ def delete_draft(gmail_id):
 
 def save_website_content(account, content):
     save_setting("website_content", content, account)
-    save_setting("website_crawled_at", str(__import__('time').time()), account)
 
 def get_website_content(account):
     return get_setting("website_content", "", account)

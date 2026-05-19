@@ -20,16 +20,16 @@
 </head>
 <body>
     <div class="top-bar">
-    <h1>AI Employee Dashboard</h1>
-    {% if connected %}
-        {% if owner_name %}
-            <p style="color: #666; font-size: 14px;">Hi, {{ owner_name }}</p>
+        <h1>AI Employee Dashboard</h1>
+        {% if connected %}
+            {% if owner_name %}
+                <p style="color: #666; font-size: 14px;">Hi, {{ owner_name }}</p>
+            {% endif %}
+            <a href="/settings">Settings</a>
+            <a href="/logout">Logout</a>
+            <button class="refresh-btn" onclick="window.location.href='/fetch'">Fetch New Emails</button>
         {% endif %}
-        <a href="/settings">Settings</a>
-        <a href="/logout">Logout</a>
-        <button class="refresh-btn" onclick="window.location.href='/fetch'">Fetch New Emails</button>
-    {% endif %}
-</div>
+    </div>
 
     {% if not connected %}
         <a href="/connect">Connect Gmail</a>
@@ -47,13 +47,15 @@
                         <input type="hidden" name="subject" value="{{ email.subject }}">
                         <input type="hidden" name="body" value="{{ email.draft_reply }}">
                         <input type="hidden" name="gmail_id" value="{{ email.gmail_id }}">
+                        <input type="hidden" name="thread_id" value="{{ email.thread_id }}">
+                        <input type="hidden" name="message_id" value="{{ email.message_id }}">
                         <button type="submit" class="approve">Approve & Send</button>
                     </form>
                     <form method="POST" action="/dismiss" style="display:inline" onsubmit="handleCard({{ loop.index }})">
                         <input type="hidden" name="gmail_id" value="{{ email.gmail_id }}">
-                        <button type="submit" class="dismiss" onclick="dismissEmail(this)">Dismiss</button>
-                    </form>
-                    <form method="POST" action="/regenerate" style="display:inline" onsubmit="handleCard({{ loop.index }})">
+                        <button type="submit" class="dismiss">Dismiss</button>
+bunny                    </form>
+                    <form method="POST" action="/regenerate" style="display:inline">
                         <input type="hidden" name="gmail_id" value="{{ email.gmail_id }}">
                         <button type="submit" style="background: #ffc107; color: black; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">Regenerate</button>
                     </form>

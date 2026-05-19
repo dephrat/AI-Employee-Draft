@@ -34,7 +34,17 @@
         <label>Website URL</label>
         <p class="hint">Your business website. Click "Crawl Now" to fetch the latest content.</p>
         <input type="text" name="website_url" value="{{ website_url }}">
+        
+        <label>Additional Pages to Crawl</label>
+        <p class="hint">Comma-separated URLs of specific pages to crawl. e.g. https://yoursite.com/hotels, https://yoursite.com/faq</p>
+        <input type="text" name="additional_urls" value="{{ additional_urls }}">
+        
+        <label>Max Pages to Crawl</label>
+        <p class="hint">How many pages of your website to crawl. More pages = better AI knowledge but slower crawl.</p>
+        <input type="text" name="max_crawl_pages" value="{{ max_crawl_pages }}">
+
         <button type="submit">Save</button>
+        
     </form>
     <form method="POST" action="/crawl" style="margin-top: 10px;">
         <button type="submit" style="background: #28a745;">Crawl Now</button>

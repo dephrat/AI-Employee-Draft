@@ -4,6 +4,7 @@ from email.mime.text import MIMEText
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
+from concurrent.futures import ThreadPoolExecutor
 
 SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
 CLIENT_SECRETS_FILE = os.getenv("GOOGLE_CLIENT_SECRETS", "credentials/credentials.json")
@@ -69,6 +70,8 @@ def get_new_emails(service, whitelist):
 
         emails.append({
             "gmail_id": msg["id"],
+            "thread_id": msg_data["threadId"],
+            "message_id": headers.get("Message-ID", ""),
             "sender": headers.get("From", ""),
             "subject": headers.get("Subject", ""),
             "body": body
@@ -76,14 +79,23 @@ def get_new_emails(service, whitelist):
 
     return emails
 
-def send_reply(service, to, subject, body):
+def send_reply(service, to, subject, body, thread_id=None, message_id=None):
     message = MIMEText(body)
     message["to"] = to
     message["subject"] = "Re: " + subject
+    if message_id:
+        message["In-Reply-To"] = message_id
+        message["References"] = message_id
+
     raw = base64.urlsafe_b64encode(message.as_bytes()).decode("utf-8")
+
+    msg_body = {"raw": raw}
+    if thread_id:
+        msg_body["threadId"] = thread_id
+
     service.users().messages().send(
         userId="me",
-        body={"raw": raw}
+        body=msg_body
     ).execute()
 
 def archive_email(service, gmail_id):
