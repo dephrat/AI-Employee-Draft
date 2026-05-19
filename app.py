@@ -5,6 +5,9 @@ from gmail import get_oauth_flow, credentials_to_dict
 from concurrent.futures import ThreadPoolExecutor
 from google.auth.exceptions import RefreshError
 from db import init_db, get_db, get_setting, save_setting, delete_draft, get_draft
+import time
+from crawler import crawl_website
+from db import get_website_content, get_website_crawled_at, save_website_content
 
 load_dotenv()
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -66,6 +69,18 @@ def fetch():
     service = get_gmail_service(session["credentials"])
     whitelist = [e.strip() for e in get_setting("whitelist", "", current_account()).split(",") if e.strip()]
     business_brief = get_setting("business_brief", "", current_account())
+
+    website_url = get_setting("website_url", "", current_account())
+    crawled_at = get_website_crawled_at(current_account())
+    if website_url and (not crawled_at or time.time() - crawled_at > 86400):
+        content = crawl_website(website_url)
+        save_website_content(current_account(), content)
+    else:
+        content = get_website_content(current_account())
+
+    if content:
+        business_brief = business_brief + "\n\nWebsite content:\n" + content
+
     emails = get_new_emails(service, whitelist)
 
     def process_email(email):
@@ -143,12 +158,14 @@ def settings():
         save_setting("owner_name", request.form.get("owner_name"), account)
         save_setting("business_brief", request.form.get("business_brief"), account)
         save_setting("whitelist", request.form.get("whitelist"), account)
+        save_setting("website_url", request.form.get("website_url"), account)
         saved = True
-    
+
     owner_name = get_setting("owner_name", "", account)
     business_brief = get_setting("business_brief", "", account)
     whitelist = get_setting("whitelist", "", account)
-    return render_template("settings.html", owner_name=owner_name, business_brief=business_brief, whitelist=whitelist, saved=saved)
+    website_url = get_setting("website_url", "", account)
+    return render_template("settings.html", owner_name=owner_name, business_brief=business_brief, whitelist=whitelist, website_url=website_url, saved=saved)
 
 @app.route("/regenerate", methods=["POST"])
 def regenerate():

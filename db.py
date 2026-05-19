@@ -64,3 +64,14 @@ def delete_draft(gmail_id):
     conn.execute("DELETE FROM emails WHERE gmail_id = ?", (gmail_id,))
     conn.commit()
     conn.close()
+
+def save_website_content(account, content):
+    save_setting("website_content", content, account)
+    save_setting("website_crawled_at", str(__import__('time').time()), account)
+
+def get_website_content(account):
+    return get_setting("website_content", "", account)
+
+def get_website_crawled_at(account):
+    val = get_setting("website_crawled_at", None, account)
+    return float(val) if val else None
