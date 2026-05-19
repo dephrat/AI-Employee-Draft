@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from gmail import get_oauth_flow, credentials_to_dict
 from concurrent.futures import ThreadPoolExecutor
 from google.auth.exceptions import RefreshError
-from db import init_db, get_db, get_setting, save_setting, delete_draft
+from db import init_db, get_db, get_setting, save_setting, delete_draft, get_draft
 
 load_dotenv()
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -14,6 +14,9 @@ app.secret_key = os.getenv("SECRET_KEY", "dev-secret")
 
 def current_account():
     return session.get("account_email")
+
+def get_emails_from_db(gmail_ids):
+    return [get_draft(gid) for gid in gmail_ids if get_draft(gid)]
 
 @app.errorhandler(RefreshError)
 def handle_refresh_error(e):
@@ -35,7 +38,6 @@ def connect():
     )
     session["state"] = state
     session["code_verifier"] = flow.code_verifier
-    print("Redirect URI:", url_for("oauth_callback", _external=True))
     return redirect(auth_url)
 
 @app.route("/oauth/callback")
@@ -59,7 +61,7 @@ def fetch():
 
     from gmail import get_gmail_service, get_new_emails
     from ai import draft_reply
-    from db import get_draft, save_draft
+    from db import save_draft
 
     service = get_gmail_service(session["credentials"])
     whitelist = [e.strip() for e in get_setting("whitelist", "", current_account()).split(",") if e.strip()]
@@ -69,27 +71,16 @@ def fetch():
     def process_email(email):
         existing = get_draft(email["gmail_id"])
         if existing:
-            return {
-                "subject": existing["subject"],
-                "sender": existing["sender"],
-                "draft_reply": existing["draft_reply"],
-                "gmail_id": existing["gmail_id"],
-                "body": existing["body"]
-            }
+            return existing["gmail_id"]
         reply = draft_reply(email["body"], email["sender"], email["subject"], business_brief)
         save_draft(email["gmail_id"], email["sender"], email["subject"], email["body"], reply)
-        return {
-            "subject": email["subject"],
-            "sender": email["sender"],
-            "draft_reply": reply,
-            "gmail_id": email["gmail_id"],
-            "body": email["body"]
-        }
+        return email["gmail_id"]
 
     with ThreadPoolExecutor() as executor:
-        results = list(executor.map(process_email, emails))
+        gmail_ids = list(executor.map(process_email, emails))
 
-    session["drafted_emails"] = results
+    session["drafted_email_ids"] = gmail_ids
+    results = get_emails_from_db(gmail_ids)
     return render_template("dashboard.html", connected=True, emails=results, owner_name=get_setting("owner_name", "", current_account()))
 
 @app.route("/send", methods=["POST"])
@@ -98,6 +89,7 @@ def send():
         return redirect(url_for("connect"))
 
     from gmail import get_gmail_service, send_reply, archive_email
+
     service = get_gmail_service(session["credentials"])
 
     to = request.form.get("to")
@@ -110,9 +102,10 @@ def send():
         archive_email(service, gmail_id)
         delete_draft(gmail_id)
 
-    emails = session.get("drafted_emails", [])
-    emails = [e for e in emails if e["gmail_id"] != gmail_id]
-    session["drafted_emails"] = emails
+    ids = session.get("drafted_email_ids", [])
+    ids = [i for i in ids if i != gmail_id]
+    session["drafted_email_ids"] = ids
+    emails = get_emails_from_db(ids)
 
     return render_template("dashboard.html", connected=True, emails=emails, owner_name=get_setting("owner_name", "", current_account()))
 
@@ -135,9 +128,10 @@ def dismiss():
         label_email(service, gmail_id, "ai-employee-review")
         delete_draft(gmail_id)
 
-    emails = session.get("drafted_emails", [])
-    emails = [e for e in emails if e["gmail_id"] != gmail_id]
-    session["drafted_emails"] = emails
+    ids = session.get("drafted_email_ids", [])
+    ids = [i for i in ids if i != gmail_id]
+    session["drafted_email_ids"] = ids
+    emails = get_emails_from_db(ids)
 
     return render_template("dashboard.html", connected=True, emails=emails, owner_name=get_setting("owner_name", "", current_account()))
 
@@ -162,19 +156,18 @@ def regenerate():
         return redirect(url_for("connect"))
 
     from ai import draft_reply
-    from db import save_draft, get_draft
+    from db import save_draft
 
     gmail_id = request.form.get("gmail_id")
     business_brief = get_setting("business_brief", "", current_account())
 
-    emails = session.get("drafted_emails", [])
-    email = next((e for e in emails if e["gmail_id"] == gmail_id), None)
+    existing = get_draft(gmail_id)
+    if existing:
+        new_reply = draft_reply(existing["body"], existing["sender"], existing["subject"], business_brief)
+        save_draft(gmail_id, existing["sender"], existing["subject"], existing["body"], new_reply)
 
-    if email:
-        new_reply = draft_reply(email["body"], email["sender"], email["subject"], business_brief)
-        save_draft(gmail_id, email["sender"], email["subject"], email["body"], new_reply)
-        emails = [e if e["gmail_id"] != gmail_id else {**e, "draft_reply": new_reply} for e in emails]
-        session["drafted_emails"] = emails
+    ids = session.get("drafted_email_ids", [])
+    emails = get_emails_from_db(ids)
 
     return render_template("dashboard.html", connected=True, emails=emails, owner_name=get_setting("owner_name", "", current_account()))
 
