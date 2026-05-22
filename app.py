@@ -71,7 +71,9 @@ def fetch():
     service = get_gmail_service(session["credentials"])
     whitelist = [e.strip() for e in get_setting("whitelist", "", current_account()).split(",") if e.strip()]
     if not whitelist:
+        session["drafted_email_ids"] = []
         return render_template("dashboard.html", connected=True, emails=[], owner_name=get_setting("owner_name", "", current_account()))
+    
     business_brief = get_setting("business_brief", "", current_account())
 
     content = get_website_content(current_account())
